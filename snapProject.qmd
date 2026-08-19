@@ -50,6 +50,7 @@ library(statnet)
 library(igraph)
 library(ggplot2)
 library(texreg)
+library(network)
 
 # -----------------------------
 # Set the working directory
@@ -61,9 +62,26 @@ list.files() # List the files in the current working directory to see if you're 
 
 ```{r}
 
+SFF_data <- read.csv("copurchasing_science_fiction_fantasy.csv")
+PF_data <- read.csv("copurchasing_parenting_families.csv")
+CFW_data <- read.csv("copurchasing_cooking_food_wine.csv")
+```
+
+```{r}
+
 
 amazon_data <- read.csv("amazon_copurchasing_clean.csv")
 amazon_igraph <- graph_from_data_frame(amazon_data, directed = TRUE)
+```
+
+```{r}
+combinedConnections <- rbind(SFF_data, PF_data, CFW_data)
+
+igraph <- graph_from_data_frame(
+  combinedConnections
+)
+igraph
+
 ```
 
 ```{r}
@@ -78,17 +96,17 @@ igraph_options(
 ```
 
 ```{r}
-net_layout <- layout_with_fr(amazon_igraph)
+net_layout <- layout_with_fr(igraph)
 ```
 
 ```{r}
 plot(
-  amazon_igraph,
+  igraph,
   layout = net_layout,
   edge.color = 'black',
-  vertex.label = V(amazon_igraph)$name, # Displays node/ASIN IDs
+  vertex.label = V(igraph)$name, # Displays node/ASIN IDs
   vertex.label.cex = 0.5,
-  margin = 0
+  margin = -0.001
 )
 
 ```
