@@ -1,0 +1,194 @@
+---
+title: "Lab 3"
+author: "Luke Wejman, Jasmine Meyer, Benjamin Auby, Bruce Jordan Garcia Morales"
+date: today
+format: 
+  pdf:
+      toc: true
+      toc-depth: 4
+      shift-heading-level-by: 2
+      fig-pos: "H"
+      fig-cap-location: top
+      geometry:
+        - top=1in
+        - right=.8in
+        - bottom=1in
+        - left=.8in
+      link-citations: true
+      linkcolor: blue
+      include-in-header: 
+        text: |
+          \usepackage{fancyhdr}
+          \usepackage{titling}
+          \pagestyle{fancy}
+          \fancyhf{}
+          \renewcommand\maketitle{
+            \fancyhead[C]{
+              \thetitle
+              \ifx \theauthor\empty  \else \ – \theauthor \fi
+              \ifx \thedate\empty  \else \ – \thedate \ \fi
+            }
+          }
+          \fancyfoot[C]{\thepage}
+---
+
+```{r}
+#| echo: false
+#| output: false
+#| message: false
+
+# Clear your environment
+rm(list=ls())
+
+# Install packages below if you do not have them:
+# -------------------------------------------------
+if (!"statnet" %in% installed.packages()) install.packages("statnet") # For fitting ERGMs
+if (!"igraph" %in% installed.packages()) install.packages("igraph") # For network plotting
+if (!"texreg" %in% installed.packages()) install.packages("texreg") # For printing "nicer" model output
+
+library(statnet)
+library(igraph)
+library(ggplot2)
+library(texreg)
+
+# -----------------------------
+# Set the working directory
+# Session > Set Working Directory > To Source File Location
+# -----------------------------
+list.files() # List the files in the current working directory to see if you're in the right directory
+
+```
+
+```{r}
+
+
+amazon_data <- read.csv("amazon_copurchasing_clean.csv")
+amazon_igraph <- graph_from_data_frame(amazon_data, directed = TRUE)
+```
+
+```{r}
+igraph_options(
+  vertex.size = 12,
+  vertex.color = 'grey',
+  edge.color = 'gray80',
+  edge.arrow.size = 0.1,
+  vertex.label = NA
+)
+
+```
+
+```{r}
+net_layout <- layout_with_fr(amazon_igraph)
+```
+
+```{r}
+plot(
+  amazon_igraph,
+  layout = net_layout,
+  edge.color = 'black',
+  vertex.label = V(amazon_igraph)$name, # Displays node/ASIN IDs
+  vertex.label.cex = 0.5,
+  margin = 0
+)
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+#| echo: false
+#| output: false
+#| message: false
+
+# First we will load in the adviceEdgelist.csv file, which contains our dependent
+# variable. These are responses to the question:
+# “List up to 5 employees who you rely on the most for help or advice at work.” 
+# Note that participants were limited to selecting at most five respondents.
+adviceEdgelist <- read.csv("adviceEdgelist.csv")
+# View the first rows of the edgelist to make sure it imported correctly:
+head(adviceEdgelist)
+# Convert the edgelist to a network object in statnet format:
+advice <- as.network.matrix(adviceEdgelist, matrix.type = "edgelist") 
+# View a summary of the network object
+advice
+# Independent variables:
+# Load node attributes, and store them in the advice network object we have created
+advice |> network::set.vertex.attribute("department", 
+                          value = read.csv("departmentNode.csv")$department) # Categorical variable for department
+
+advice |> network::set.vertex.attribute("leader",read.csv("leaderNode.csv")$leader) # Indicator variable for department leader
+advice |> network::set.vertex.attribute("tenure",read.csv("tenureNode.csv")$tenure) # Years tenure
+advice |> network::set.vertex.attribute("office",read.csv("officeNode.csv")$office) # Indicator variable for whether they are located in the main or secondary office
+advice |> network::set.vertex.attribute("female",read.csv("femaleNode.csv")$female) # Indicator variable for female vs. male
+advice # These five variables should now be listed as vertex attributes when viewing the summary of the network
+```
+
+```{r}
+#| echo: false
+#| output: false
+
+# Double-check the values for all of the node variables
+network::get.vertex.attribute(advice,"department")
+network::get.vertex.attribute(advice,"leader")
+network::get.vertex.attribute(advice,"tenure")
+network::get.vertex.attribute(advice,"office")
+network::get.vertex.attribute(advice,"female")
+```
+
+```{r}
+#| echo: false
+#| output: false
+
+# Finally, we will import data on the counts of direct messages sent between two employees
+# The file "messageEdgelist.csv" contains a messaging edgelist, that we will convert to a matrix
+# Statnet allows adjacency matrices with valued ties to be used as predictors (edge covariates) in ERGMs
+messageEdgelist <- read.csv("messageEdgelist.csv")
+head(messageEdgelist) # Check the first five rows of the edgelist. Third column is the message count
+messages <- matrix(nrow = 66, ncol = 66) # Number of Direct messages sent from i to j
+for (i in 1:nrow(messageEdgelist)) { # Read from edgelist
+  messages[messageEdgelist$SenderId[i], messageEdgelist$ReceiverId[i] ] <- as.numeric(messageEdgelist$MessagesSent[i])
+}
+for (i in 1:66) { # Remove self-ties (messages sent to self)
+  messages[i,i] <- as.numeric(0)
+}
+hundreds_messages <- messages / 100 # Change weights to represent hundred of messages sent
+                                   # This will make viewing/interpreting ergm coefficients easier
+
+# ---------------------------------------------------------------------------------------
+# Basic descriptive information
+# ---------------------------------------------------------------------------------------
+summary(advice, print.adj = FALSE)           # summarize the advice From You network
+```
+
+
+```{r}
+#| echo: false
+#| message: false 
+# Ignore messages on any objects that are masked
+
+# Set default plot options
+igraph_options(vertex.size = 12, vertex.color = 'grey', # vertex.size changes the size of nodes; vertex.color changes the color of nodes
+               edge.color='gray80', edge.arrow.size=.1, # edge.color changes the color of ties; edge.arrow.size changes the size of tie arrow heads
+               vertex.label = NA)                       # vertex.label = NA specifies not to display vertex labels in the plot
+
+# Plot the Advice network
+advice_igraph <- graph_from_adjacency_matrix(as.matrix.network(advice)) # make an igraph network object from statnet network object
+advice_igraph <- set_vertex_attr(advice_igraph,"female",value = read.csv("femaleNode.csv")$female)
+net_layout <- layout_with_kk(advice_igraph) # Calculates and stores a spring-embedded layout
+
+# We will re-use this same layout for each plot, so nodes are always in the same place
+plot(advice_igraph, layout=net_layout, edge.color='black', 
+     vertex.label = V(advice_igraph),
+     vertex.label.cex = 0.5,
+     margin=0
+     )
+```
