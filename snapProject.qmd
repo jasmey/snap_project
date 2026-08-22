@@ -69,9 +69,13 @@ CFW_data <- read.csv("copurchasing_cooking_food_wine.csv")
 
 ```{r}
 
+MSFF_data <- read.csv("metadata_science_fiction_fantasy.csv")
+MPF_data <- read.csv("metadata_parenting_families.csv")
+MCFW_data <- read.csv("metadata_cooking_food_wine.csv")
 
-amazon_data <- read.csv("amazon_copurchasing_clean.csv")
-amazon_igraph <- graph_from_data_frame(amazon_data, directed = TRUE)
+nrow(MSFF_data)
+nrow(MPF_data)
+nrow(MCFW_data)
 ```
 
 ```{r}
