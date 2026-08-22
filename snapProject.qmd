@@ -62,16 +62,16 @@ list.files() # List the files in the current working directory to see if you're 
 
 ```{r}
 
-SFF_data <- read.csv("copurchasing_science_fiction_fantasy.csv")
-PF_data <- read.csv("copurchasing_parenting_families.csv")
-CFW_data <- read.csv("copurchasing_cooking_food_wine.csv")
+SFF_data <- read.csv("copurchasing_science_fiction_fantasy_reduced.csv")
+PF_data <- read.csv("copurchasing_parenting_families_reduced.csv")
+CFW_data <- read.csv("copurchasing_cooking_food_wine_reduced.csv")
 ```
 
 ```{r}
 
-MSFF_data <- read.csv("metadata_science_fiction_fantasy.csv")
-MPF_data <- read.csv("metadata_parenting_families.csv")
-MCFW_data <- read.csv("metadata_cooking_food_wine.csv")
+MSFF_data <- read.csv("metadata_science_fiction_fantasy_reduced.csv")
+MPF_data <- read.csv("metadata_parenting_families_reduced.csv")
+MCFW_data <- read.csv("metadata_cooking_food_wine_reduced.csv")
 
 nrow(MSFF_data)
 nrow(MPF_data)
@@ -79,12 +79,12 @@ nrow(MCFW_data)
 ```
 
 ```{r}
-combinedConnections <- rbind(SFF_data, PF_data, CFW_data)
 
-igraph <- graph_from_data_frame(
-  combinedConnections
+
+igraph1 <- graph_from_data_frame(
+  SFF_data
 )
-igraph
+igraph1
 
 ```
 
