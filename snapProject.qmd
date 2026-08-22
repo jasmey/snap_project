@@ -1,6 +1,6 @@
 ---
 title: "Lab 3"
-author: "Luke Wejman, Jasmine Meyer, Benjamin Auby, Bruce Jordan Garcia Morales"
+author: "Luke Wejman, Jasmine Meyer, Benjamin Auby, Bruce Garcia-Morales"
 date: today
 format: 
   pdf:
@@ -51,6 +51,7 @@ library(igraph)
 library(ggplot2)
 library(texreg)
 library(network)
+library(dplyr)
 
 # -----------------------------
 # Set the working directory
@@ -120,93 +121,225 @@ plot(
 
 ```
 
-
+# ERGM
 
 ```{r}
-#| echo: false
-#| output: false
-#| message: false
 
-# First we will load in the adviceEdgelist.csv file, which contains our dependent
-# variable. These are responses to the question:
-# “List up to 5 employees who you rely on the most for help or advice at work.” 
-# Note that participants were limited to selecting at most five respondents.
-adviceEdgelist <- read.csv("adviceEdgelist.csv")
-# View the first rows of the edgelist to make sure it imported correctly:
-head(adviceEdgelist)
-# Convert the edgelist to a network object in statnet format:
-advice <- as.network.matrix(adviceEdgelist, matrix.type = "edgelist") 
-# View a summary of the network object
-advice
-# Independent variables:
-# Load node attributes, and store them in the advice network object we have created
-advice |> network::set.vertex.attribute("department", 
-                          value = read.csv("departmentNode.csv")$department) # Categorical variable for department
+SFF_data <- read.csv("copurchasing_science_fiction_fantasy.csv")
+PF_data <- read.csv("copurchasing_parenting_families.csv")
+CFW_data <- read.csv("copurchasing_cooking_food_wine.csv")
+combinedConnections <- rbind(SFF_data,PF_data, CFW_data)
 
-advice |> network::set.vertex.attribute("leader",read.csv("leaderNode.csv")$leader) # Indicator variable for department leader
-advice |> network::set.vertex.attribute("tenure",read.csv("tenureNode.csv")$tenure) # Years tenure
-advice |> network::set.vertex.attribute("office",read.csv("officeNode.csv")$office) # Indicator variable for whether they are located in the main or secondary office
-advice |> network::set.vertex.attribute("female",read.csv("femaleNode.csv")$female) # Indicator variable for female vs. male
-advice # These five variables should now be listed as vertex attributes when viewing the summary of the network
+# vertex set
+SFF_meta <- read.csv("metadata_science_fiction_fantasy.csv")
+PF_meta <- read.csv("metadata_parenting_families.csv")
+CFW_meta <- read.csv("metadata_cooking_food_wine.csv")
+combined_meta <- rbind(SFF_meta, PF_meta, CFW_meta)
 ```
 
 ```{r}
-#| echo: false
-#| output: false
+# Snowball sampling
+valid_ids <- as.character(combined_meta$id)
 
-# Double-check the values for all of the node variables
-network::get.vertex.attribute(advice,"department")
-network::get.vertex.attribute(advice,"leader")
-network::get.vertex.attribute(advice,"tenure")
-network::get.vertex.attribute(advice,"office")
-network::get.vertex.attribute(advice,"female")
-```
+filteredConnections <- combinedConnections %>%
+  mutate(across(1:2, as.character)) %>%
+  filter(.[[1]] %in% valid_ids,.[[2]] %in% valid_ids)
 
-```{r}
-#| echo: false
-#| output: false
+set.seed(42)
+g <- graph_from_data_frame(filteredConnections, directed = TRUE)
+g <- simplify(g,remove.multiple = TRUE,)
+seeds <- sample(V(g)$name,150)
 
-# Finally, we will import data on the counts of direct messages sent between two employees
-# The file "messageEdgelist.csv" contains a messaging edgelist, that we will convert to a matrix
-# Statnet allows adjacency matrices with valued ties to be used as predictors (edge covariates) in ERGMs
-messageEdgelist <- read.csv("messageEdgelist.csv")
-head(messageEdgelist) # Check the first five rows of the edgelist. Third column is the message count
-messages <- matrix(nrow = 66, ncol = 66) # Number of Direct messages sent from i to j
-for (i in 1:nrow(messageEdgelist)) { # Read from edgelist
-  messages[messageEdgelist$SenderId[i], messageEdgelist$ReceiverId[i] ] <- as.numeric(messageEdgelist$MessagesSent[i])
-}
-for (i in 1:66) { # Remove self-ties (messages sent to self)
-  messages[i,i] <- as.numeric(0)
-}
-hundreds_messages <- messages / 100 # Change weights to represent hundred of messages sent
-                                   # This will make viewing/interpreting ergm coefficients easier
+# Nodes & Edges
+snowball_nodes <- ego(g,order = 20,nodes = seeds,mode = "all")
+snowball_nodes <- unique(unlist(snowball_nodes))
+snowball_graph <- induced_subgraph(g, vids = snowball_nodes)
 
-# ---------------------------------------------------------------------------------------
-# Basic descriptive information
-# ---------------------------------------------------------------------------------------
-summary(advice, print.adj = FALSE)           # summarize the advice From You network
+
+# Match sampled products to metadata
+
+product_ids <- V(snowball_graph)$name
+snowball_meta <- combined_meta[match(product_ids,as.character(combined_meta$id)),]
+snowball_edges <- igraph::as_data_frame(snowball_graph,what = "edges"
+)
+
+# Final sample of nodes & edges
+head(snowball_meta)
+head(snowball_edges)
+
+vcount(snowball_graph)
+ecount(snowball_graph)
 ```
 
 
 ```{r}
-#| echo: false
-#| message: false 
-# Ignore messages on any objects that are masked
 
-# Set default plot options
-igraph_options(vertex.size = 12, vertex.color = 'grey', # vertex.size changes the size of nodes; vertex.color changes the color of nodes
-               edge.color='gray80', edge.arrow.size=.1, # edge.color changes the color of ties; edge.arrow.size changes the size of tie arrow heads
-               vertex.label = NA)                       # vertex.label = NA specifies not to display vertex labels in the plot
+# create Amazon network
+amazonEdgelist <- data.frame(
+  from = match(
+    as.character(snowball_edges$from),
+    as.character(product_ids)
+  ),
+  to = match(
+    as.character(snowball_edges$to),
+    as.character(product_ids)
+  )
+)
 
-# Plot the Advice network
-advice_igraph <- graph_from_adjacency_matrix(as.matrix.network(advice)) # make an igraph network object from statnet network object
-advice_igraph <- set_vertex_attr(advice_igraph,"female",value = read.csv("femaleNode.csv")$female)
-net_layout <- layout_with_kk(advice_igraph) # Calculates and stores a spring-embedded layout
+amazonEdgelist <- unique(amazonEdgelist)
+amazon_net <- network::network.initialize(
+  n = length(product_ids),
+  directed = TRUE
+)
 
-# We will re-use this same layout for each plot, so nodes are always in the same place
-plot(advice_igraph, layout=net_layout, edge.color='black', 
-     vertex.label = V(advice_igraph),
-     vertex.label.cex = 0.5,
-     margin=0
-     )
+# Each vertex gets its actual Amazon id
+network::set.vertex.attribute(
+  amazon_net,
+  "vertex.names",
+  value = as.character(product_ids)
+)
+network::add.edges(
+  amazon_net,
+  tail = amazonEdgelist$from,
+  head = amazonEdgelist$to
+)
+
+network.size(amazon_net)
+network.edgecount(amazon_net)
+
+
 ```
+
+
+```{r}
+# set vertex attributes
+
+amazon_net |> network::set.vertex.attribute(
+  "salesrank",
+  value = snowball_meta$salesrank
+) 
+
+amazon_net |> network::set.vertex.attribute(
+  "reviews_total",
+  value = snowball_meta$reviews_total
+) 
+
+amazon_net |> network::set.vertex.attribute(
+  "reviews_avg_rating",
+  value = snowball_meta$reviews_avg_rating
+) 
+
+amazon_net |> network::set.vertex.attribute(
+  "categories_count",
+  value = snowball_meta$categories_count
+) 
+
+amazon_net |> network::set.vertex.attribute(
+  "product_id",
+  value = snowball_meta$id
+)
+
+amazon_net |> network::set.vertex.attribute(
+  "asin",
+  value = snowball_meta$asin
+)
+
+amazon_net |> network::set.vertex.attribute(
+  "title",
+  value = snowball_meta$title
+)
+amazon_net
+```
+
+
+```{r}
+# ERGM Model
+start_time <- Sys.time()
+ergm_Model <- ergm(amazon_net ~ edges  
+               + mutual
+               + gwidegree(log(2), fixed = T)  # Inverted preferential attachment (indegree)
+               + gwodegree(2, fixed = T)  # Inverted preferential attachment (outdegree)
+               + dgwesp(log(2), type = "OTP", fixed = T)
+               
+               # node attribute effects
+               + nodeicov("salesrank")
+               + nodeicov("reviews_total")
+               + nodeicov("reviews_avg_rating")
+               + nodeicov("categories_count")
+              
+               # Model constraints
+               ,control = control.ergm(seed = 42)
+               ,verbose = F
+)
+
+end_time <- Sys.time()
+elapsed_time <- end_time - start_time
+elapsed_time
+summary(ergm_Model)
+
+```
+
+
+
+```{r}
+# Model Diagnositcs
+par(mar=c(1,1,1,1))
+mcmc.diagnostics(ergm_Model, 
+                 which="plots" # this command produces only the output plots
+                 )
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+# -------------------------------------------------------------------------------------------------
+# Goodness of fit test - will display in RStudio
+# Check how well the estimated model captures certain features of the observed network, for example triangles in the network.
+# -------------------------------------------------------------------------------------------------
+
+# Calculate layout (node coordinates) from the OBSERVED network
+amazon_igraph <- graph_from_adjacency_matrix(as.matrix.network(amazon_net))
+net_layout <- layout_with_kk(amazon_igraph)
+
+# This first command simulates 100 networks.
+# These networks, if we use sufficient burnin steps in the markov chain used to generate them,
+# may be thought of as random samples from the joint probability distribution that is our fitted ERGM.
+sim1 <- simulate(ergm_Model, burnin=100000, interval=100000, nsim=100, verbose=T)  # Uses the ergm model to simulate a null model
+
+sim1_net1 <- igraph::graph.adjacency(as.matrix.network(sim1[[1]]))
+igraph::plot.igraph(sim1_net1,layout=net_layout,edge.color="grey",  
+                    vertex.color = 'grey',edge.arrow.size=.1)                                                       
+
+# Plot the 10th simulated network
+sim1_net10 <- igraph::graph.adjacency(as.matrix.network(sim1[[10]]))
+igraph::plot.igraph(sim1_net10,layout=net_layout,edge.color="purple",  
+                    vertex.color = 'grey',edge.arrow.size=.1)
+
+
+```
+
+
+```{r}
+#| warning: false
+start_time <- Sys.time()
+# Model 2:
+# It may take a second for this command to run.
+gof1 <- gof(ergm_Model, verbose=T, burnin=1e+5, interval=1e+5, control = control.gof.ergm(nsim = 200))
+# If you run below and then wouldn't see the plot, trypar(mar=c(2,2,2,2))
+# dev.off()           # Clear any other plots from the plot window
+plot(gof1)          # Plot the goodness of fit
+# Note: This should produce five separate plots that you should look through.
+#       In RStudio, scroll between the plots using the arrow buttons
+gof1                # Display the goodness of fit info in the console
+
+
+end_time <- Sys.time()
+
+elapsed_time <- end_time - start_time
+
+elapsed_time
+```
+
+
