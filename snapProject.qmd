@@ -1,5 +1,5 @@
 ---
-title: "Lab 3"
+title: "SNAP Project"
 author: "Luke Wejman, Jasmine Meyer, Benjamin Auby, Bruce Garcia-Morales"
 date: today
 format: 
@@ -171,6 +171,21 @@ vcount(snowball_graph)
 ecount(snowball_graph)
 ```
 
+### Hypotheses
+
+***Hypothesis 1***: There will be indegree popularity effects — that is, a tendency for a small number of products to be frequently co-purchased alongside many others (as opposed to co-purchase links being spread evenly across all products).
+
+***Hypothesis 2***: There will be outdegree effects — that is, some products will tend to "point to" (be purchased alongside) an unusually large number of other products, beyond what chance alone would predict.
+
+***Hypothesis 3***: If product *i* is co-purchased with product *j*, it will be more likely that product *j* is also co-purchased with product *i* (reciprocity).
+
+***Hypothesis 4***: Co-purchase relationships will tend to be transitive — that is, if product *i* is co-purchased with product *k*, and *k* is co-purchased with product *j*, then *i* will be more likely to be co-purchased with *j* as well.
+
+***Hypothesis 5***: Products with a better (lower) sales rank will be more likely to be co-purchased with other products, as popularity drives bundling behavior.
+
+***Hypothesis 6***: Products with a higher total number of reviews will be more likely to be sought out as co-purchase partners by other products.
+
+***Hypothesis 7***: Products with a higher average review rating will be more likely to be co-purchased with other products, as quality signals encourage bundled buying.
 
 ```{r}
 
@@ -209,7 +224,6 @@ network.edgecount(amazon_net)
 
 
 ```
-
 
 ```{r}
 # set vertex attributes
@@ -251,7 +265,6 @@ amazon_net |> network::set.vertex.attribute(
 amazon_net
 ```
 
-
 ```{r}
 # ERGM Model
 start_time <- Sys.time()
@@ -279,8 +292,6 @@ summary(ergm_Model)
 
 ```
 
-
-
 ```{r}
 # Model Diagnositcs
 par(mar=c(1,1,1,1))
@@ -288,7 +299,6 @@ mcmc.diagnostics(ergm_Model,
                  which="plots" # this command produces only the output plots
                  )
 ```
-
 
 ```{r}
 #| echo: false
@@ -320,7 +330,6 @@ igraph::plot.igraph(sim1_net10,layout=net_layout,edge.color="purple",
 
 ```
 
-
 ```{r}
 #| warning: false
 start_time <- Sys.time()
@@ -341,5 +350,3 @@ elapsed_time <- end_time - start_time
 
 elapsed_time
 ```
-
-
