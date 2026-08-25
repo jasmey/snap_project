@@ -112,7 +112,7 @@ igraph_options(
 ```
 
 ```{r}
-net_layout <- layout_with_fr(igraph1)
+net_layout <- layout_with_kk(igraph1)
 ```
 
 ```{r}
@@ -136,7 +136,7 @@ igraph_options(
   vertex.label = NA
 )
 
-net_layout <- layout_with_fr(igraph2)
+net_layout <- layout_with_kk(igraph2)
 
 plot(
   igraph2,
@@ -158,7 +158,7 @@ igraph_options(
   vertex.label = NA
 )
 
-net_layout <- layout_with_fr(igraph3)
+net_layout <- layout_with_kk(igraph3)
 
 plot(
   igraph3,
