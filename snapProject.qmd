@@ -503,9 +503,10 @@ centralities |>
 ```
 
 ### Community Detection
-```{r}
-cluster <- amazon_igraph %>% cluster_walktrap()
 
+```{r}
+# directed graph clustering algorithm
+cluster <- amazon_igraph %>% cluster_infomap()
 
 membership(cluster)
 
@@ -514,5 +515,56 @@ length(cluster) # number of clusters
 sizes(cluster)
 ```
 
+# Modularity Score
+
+```{r}
+igraph::modularity(cluster)
+```
+
+# Cluster Visualization
+
+```{r}
+cluster %>% plot(
+  .,
+  amazon_igraph,
+  # layout = layout_with_gem(.),
+  layout = layout_with_fr(amazon_igraph),
+  edge.arrow.size = .3,
+  vertex.size = 4,
+  vertex.label = NA, 
+  vertex.color = adjustcolor(membership(.), alpha.f = .3),
+  vertex.label.cex = .5,
+  vertex.label.color = 'black',
+  mark.groups = by(seq_along(membership(.)), membership(.), invisible),
+  mark.shape = 1 / 4,
+  mark.col = rainbow(length(.), alpha = .1),
+  mark.border = NA,
+  main = "Amazon Network Communities"
+)
+```
+
+# Cluster Attributes
+
+```{r}
+cluster_membership <- membership(cluster)
+
+cluster_df <- data.frame(
+  node_name = names(cluster_membership),
+  cluster = as.integer(cluster_membership)
+)
+
+match_idx <- match(cluster_df$node_name, as.character(snowball_meta$id))
+meta_matched <- snowball_meta[match_idx, ]
+meta_matched$id <- NULL  
+
+cols_wanted <- c("title", "group", "genre", "salesrank", "reviews_avg_rating")
+cluster_df <- cbind(cluster_df, snowball_meta[match_idx, cols_wanted])
+
+# run following line to get all column attributes
+# cluster_df <- cbind(cluster_df, meta_matched)
+
+# can change index to get different clusters
+cluster_df[cluster_df$cluster == 3, ]
+```
 
 
