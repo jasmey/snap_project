@@ -71,8 +71,8 @@ CFW_data <- read.csv("copurchasing_cooking_food_wine.csv")
 ```{r}
 
 
-amazon_data <- read.csv("amazon_copurchasing_clean.csv")
-amazon_igraph <- graph_from_data_frame(amazon_data, directed = TRUE)
+#amazon_data <- read.csv("amazon_copurchasing_clean.csv")
+#amazon_igraph <- graph_from_data_frame(amazon_data, directed = TRUE)
 ```
 
 ```{r}
@@ -112,10 +112,6 @@ plot(
 
 ```
 
-```{r}
-
-
-```
 
 ```{r}
 
@@ -350,3 +346,105 @@ elapsed_time <- end_time - start_time
 
 elapsed_time
 ```
+
+# Some AI-generated genre grabbing code:
+```{r}
+library(stringr)
+
+extract_genre <- function(x) {
+  if (is.na(x) || x == "") return(NA_character_)
+  
+  # take just the first category path (before the first " ; ")
+  first_path <- str_split(x, " ; ")[[1]][1]
+  
+  # split into segments and drop empty strings (leading "|" creates one)
+  segments <- str_split(first_path, "\\|")[[1]]
+  segments <- segments[segments != ""]
+  
+  # strip the trailing [12345] id from each segment
+  segments_clean <- str_replace(segments, "\\[\\d+\\]$", "")
+  
+  # genre is the 3rd segment: Books | Subjects | <Genre> | ...
+  if (length(segments_clean) >= 3) segments_clean[3] else NA_character_
+}
+
+snowball_meta$genre <- sapply(snowball_meta$categories_list, extract_genre)
+```
+
+### Centrality Measures
+
+```{r}
+matched_meta <- snowball_meta[
+  match(network.vertex.names(amazon_net), as.character(snowball_meta$id)),
+]
+
+network::set.vertex.attribute(amazon_net, "title", matched_meta$title)
+
+network::list.vertex.attributes(amazon_net)
+
+# df to hold centrality measures
+centralities <- data.frame('node_name' = as.character(network.vertex.names(amazon_net)))
+
+
+matched_meta <- snowball_meta[match(network.vertex.names(amazon_net), as.character(snowball_meta$id)), ]
+network::set.vertex.attribute(amazon_net, "genre", matched_meta$genre)
+centralities$genre <- network::get.vertex.attribute(amazon_net, "genre")
+
+centralities$title <- network::get.vertex.attribute(amazon_net, "title")
+```
+### Degree
+
+```{r}
+centralities$degree <- sna::degree(amazon_net, gmode = 'graph')
+
+centralities |> 
+  dplyr::slice_max(order_by = degree, n = 10) |>
+  kableExtra::kable()
+```
+
+### Betweenness
+
+```{r}
+centralities$betweenness <- sna::betweenness(amazon_net)
+
+centralities |> 
+  dplyr::slice_max(order_by = betweenness, n = 10) |>
+  kableExtra::kable()
+```
+
+### Closeness
+
+```{r}
+centralities$closeness <-
+  igraph::closeness(
+    amazon_igraph, 
+    mode = 'all'
+    )
+
+centralities |> 
+  dplyr::slice_max(order_by = closeness, n = 10) |>
+  kableExtra::kable()
+```
+
+### Eigenvector
+
+```{r}
+centralities$eigen <-
+  igraph::eigen_centrality(amazon_igraph)$vector
+
+centralities |> 
+  dplyr::slice_max(order_by = eigen, n = 10) |>
+  kableExtra::kable()
+```
+
+### Burt's Network Constraint
+
+```{r}
+centralities$netconstraint <- igraph::constraint(amazon_igraph)
+# remember: High constraint = redundant contacts, low constraint = acting as a broker
+
+centralities |> 
+  dplyr::slice_min(order_by = netconstraint, n = 10) |> 
+  kableExtra::kable()
+```
+
