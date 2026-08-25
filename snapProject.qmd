@@ -63,31 +63,46 @@ list.files() # List the files in the current working directory to see if you're 
 
 ```{r}
 
-SFF_data <- read.csv("copurchasing_science_fiction_fantasy.csv")
-PF_data <- read.csv("copurchasing_parenting_families.csv")
-CFW_data <- read.csv("copurchasing_cooking_food_wine.csv")
+SFF_data <- read.csv("copurchasing_science_fiction_fantasy_reduced.csv")
+PF_data <- read.csv("copurchasing_parenting_families_reduced.csv")
+CFW_data <- read.csv("copurchasing_cooking_food_wine_reduced.csv")
+```
+
+```{r}
+
+MSFF_data <- read.csv("metadata_science_fiction_fantasy_reduced.csv")
+MPF_data <- read.csv("metadata_parenting_families_reduced.csv")
+MCFW_data <- read.csv("metadata_cooking_food_wine_reduced.csv")
+
+nrow(MSFF_data)
+nrow(MPF_data)
+nrow(MCFW_data)
 ```
 
 ```{r}
 
 
-#amazon_data <- read.csv("amazon_copurchasing_clean.csv")
-#amazon_igraph <- graph_from_data_frame(amazon_data, directed = TRUE)
-```
-
-```{r}
-combinedConnections <- rbind(SFF_data, PF_data, CFW_data)
-
-igraph <- graph_from_data_frame(
-  combinedConnections
+igraph1 <- graph_from_data_frame(
+  SFF_data
 )
-igraph
+#igraph1
+
+igraph2 <- graph_from_data_frame(
+  PF_data
+)
+#igraph2
+
+
+igraph3 <- graph_from_data_frame(
+  CFW_data
+)
+#igraph3
 
 ```
 
 ```{r}
 igraph_options(
-  vertex.size = 12,
+  vertex.size = 2,
   vertex.color = 'grey',
   edge.color = 'gray80',
   edge.arrow.size = 0.1,
@@ -97,24 +112,62 @@ igraph_options(
 ```
 
 ```{r}
-net_layout <- layout_with_fr(igraph)
+net_layout <- layout_with_fr(igraph1)
 ```
 
 ```{r}
 plot(
-  igraph,
+  igraph1,
   layout = net_layout,
   edge.color = 'black',
-  vertex.label = V(igraph)$name, # Displays node/ASIN IDs
+  vertex.label = V(igraph1)$name, # Displays node/ASIN IDs
   vertex.label.cex = 0.5,
-  margin = -0.001
+  margin = -0.1
 )
 
 ```
 
+```{r}
+igraph_options(
+  vertex.size = 2,
+  vertex.color = 'grey',
+  edge.color = 'gray80',
+  edge.arrow.size = 0.1,
+  vertex.label = NA
+)
+
+net_layout <- layout_with_fr(igraph2)
+
+plot(
+  igraph2,
+  layout = net_layout,
+  edge.color = 'black',
+  vertex.label = V(igraph1)$name, # Displays node/ASIN IDs
+  vertex.label.cex = 0.5,
+  margin = -0.1
+)
+
+```
 
 ```{r}
+igraph_options(
+  vertex.size = 2,
+  vertex.color = 'grey',
+  edge.color = 'gray80',
+  edge.arrow.size = 0.1,
+  vertex.label = NA
+)
 
+net_layout <- layout_with_fr(igraph3)
+
+plot(
+  igraph3,
+  layout = net_layout,
+  edge.color = 'black',
+  vertex.label = V(igraph1)$name, # Displays node/ASIN IDs
+  vertex.label.cex = 0.5,
+  margin = -0.1
+)
 ```
 
 # ERGM
